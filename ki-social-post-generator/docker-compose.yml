@@ -1,0 +1,31 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: wordpress_db
+    volumes:
+      - db_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: your_strong_root_password
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpressuser
+      MYSQL_PASSWORD: wordpresspassword
+    restart: always
+
+  wordpress:
+    image: wordpress:latest
+    container_name: wordpress_site
+    depends_on:
+      - db
+    ports:
+      - "8080:80"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: wordpressuser
+      WORDPRESS_DB_PASSWORD: wordpresspassword
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - ./wordpress-plugin:/var/www/html/wp-content/plugins/ki-social-post-generator
+    restart: always
+
+volumes:
+  db_data:

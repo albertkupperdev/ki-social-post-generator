@@ -1,10 +1,11 @@
 <?php
 /**
  * Plugin Name:       KI Social Post Generator
- * Description:       Generiert Social-Media-Posts und Bildideen aus Blog-Inhalten mithilfe der OpenAI API.
- * Version:           1.0 (Final)
+ * Description:       Generiert Social-Media-Posts aus Blog-Inhalten mithilfe der OpenAI API.
+ * Version:           1.0
  * Author:            Albert Kupper
  */
+
 
 if (!defined('ABSPATH')) {
     exit;
@@ -22,6 +23,7 @@ function kisp_add_admin_menu() {
         6                           
     );
 }
+
 add_action('admin_menu', 'kisp_add_admin_menu');
 
 
@@ -33,7 +35,6 @@ function kisp_display_plugin_page() {
 
         <form id="kisp-generator-form">
             <?php
-            
             $args = [
                 'post_type'      => 'post',
                 'posts_per_page' => -1,
@@ -46,7 +47,6 @@ function kisp_display_plugin_page() {
                 echo '<thead><tr><th style="width: 20px;"></th><th>Titel</th></tr></thead>';
                 echo '<tbody>';
                 foreach ($all_posts as $post) {
-                    
                     $content = esc_attr(strip_tags($post->post_content));
                     echo '<tr>';
                     echo '<td><input type="checkbox" name="post_ids[]" value="' . get_the_ID($post) . '" data-content="' . $content . '"></td>';
@@ -54,7 +54,7 @@ function kisp_display_plugin_page() {
                     echo '</tr>';
                 }
                 echo '</tbody></table>';
-                echo '<br><button type="submit" id="generate-posts-btn" class="button button-primary">Posts & Bildidee generieren</button>';
+                echo '<br><button type="submit" id="generate-posts-btn" class="button button-primary">Posts generieren</button>';
             } else {
                 echo '<p>Keine Beiträge gefunden.</p>';
             }
@@ -62,7 +62,6 @@ function kisp_display_plugin_page() {
         </form>
 
         <hr>
-        
         <h2>Ergebnisse:</h2>
         <div id="kisp-results-container">
             <p>Hier erscheinen bald die generierten Posts...</p>
@@ -70,13 +69,10 @@ function kisp_display_plugin_page() {
     </div>
 
     <style>
-        .kisp-result-block { padding: 20px; border: 1px solid #ccd0d4; background: #fff; margin-bottom: 20px; box-shadow: 0 1px 1px rgba(0,0,0,.04); }
-        .kisp-result-block h3 { margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        .kisp-result-block h4 { margin-top: 15px; margin-bottom: 5px; color: #2271b1; font-weight: 600; }
-        .kisp-result-block textarea { width: 100%; height: 100px; margin-bottom: 5px; background: #f9f9f9; border: 1px solid #ddd; font-family: monospace; }
-        .kisp-result-block button { cursor: pointer; margin-right: 5px; }
-        .kisp-download-btn { background-color: #2271b1 !important; color: white !important; border-color: #2271b1 !important; margin-top: 10px; }
-        .kisp-download-btn:hover { background-color: #135e96 !important; }
+        .kisp-result-block { padding: 15px; border: 1px solid #ccc; background: #fff; margin-bottom: 20px; }
+        .kisp-result-block h4 { margin-top: 0; }
+        .kisp-result-block textarea { width: 100%; height: 120px; margin-bottom: 10px; background: #f9f9f9; }
+        .kisp-result-block button { cursor: pointer; }
     </style>
 
     <script>
@@ -91,43 +87,25 @@ function kisp_display_plugin_page() {
                 const selectedCheckboxes = document.querySelectorAll('input[name="post_ids[]"]:checked');
                 
                 if (selectedCheckboxes.length === 0) {
-                    alert("Bitte wähle mindestens einen Beitrag aus.");
+                    resultsContainer.innerHTML = '<p style="color: red;">Bitte wähle mindestens einen Beitrag aus.</p>';
                     return;
                 }
 
-                
-                resultsContainer.innerHTML = '<p>Generiere Posts und Bildideen... Bitte warten. ⏳</p>';
+                resultsContainer.innerHTML = '<p>Generiere Posts... Bitte warten. ⏳</p>';
                 generateBtn.disabled = true;
 
-                
                 selectedCheckboxes.forEach(checkbox => {
                     const postContent = checkbox.getAttribute('data-content');
                     const postTitle = checkbox.closest('tr').querySelector('td:last-child').innerText;
 
-                    
-                    fetch('http:
+                    fetch('http://localhost:3000/generate-posts', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ content: postContent })
                     })
-                    .then(response => {
-                        if (!response.ok) throw new Error('Backend Fehler');
-                        return response.json();
-                    })
+                    .then(response => response.json()) // Wichtig: Wir erwarten jetzt JSON
                     .then(data => {
-                        
-                        const downloadText = `Social Media Posts für: ${postTitle}\n\n` +
-                                           `--- LINKEDIN ---\n${data.linkedin}\n\n` +
-                                           `--- X (TWITTER) ---\n${data.x}\n\n` +
-                                           `--- INSTAGRAM ---\n${data.instagram}\n\n` +
-                                           `--- BILDIDEE ---\n${data.image_idea}`;
-                        
-                        
-                        const blob = new Blob([downloadText], { type: 'text/plain' });
-                        const downloadUrl = URL.createObjectURL(blob);
-                        const fileName = `posts-${postTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
-
-                        
+                        // Erstelle ein schönes HTML-Layout für die Ergebnisse
                         const resultBlock = `
                             <div class="kisp-result-block">
                                 <h3>Ergebnis für: ${postTitle}</h3>
@@ -143,16 +121,8 @@ function kisp_display_plugin_page() {
                                 <h4>Instagram</h4>
                                 <textarea readonly>${data.instagram}</textarea>
                                 <button class="button" onclick="navigator.clipboard.writeText(this.previousElementSibling.value)">Kopieren</button>
-                                
-                                <h4>🎨 KI-Bildidee</h4>
-                                <textarea readonly style="height: 60px; border-color: #2271b1;">${data.image_idea}</textarea>
-                                <button class="button" onclick="navigator.clipboard.writeText(this.previousElementSibling.value)">Kopieren</button>
-
-                                <hr style="margin: 15px 0;">
-                                <a href="${downloadUrl}" download="${fileName}" class="button kisp-download-btn">💾 Alles als .txt speichern</a>
                             </div>
                         `;
-                        
                         
                         if (resultsContainer.innerHTML.includes('Generiere Posts')) {
                             resultsContainer.innerHTML = resultBlock;
@@ -162,7 +132,7 @@ function kisp_display_plugin_page() {
                     })
                     .catch(error => {
                         console.error('Fehler:', error);
-                        resultsContainer.innerHTML += `<p style="color: red;">Fehler bei "${postTitle}". Läuft das Backend?</p>`;
+                        resultsContainer.innerHTML += `<p style="color: red;">Ein Fehler ist für "${postTitle}" aufgetreten.</p>`;
                     })
                     .finally(() => {
                         generateBtn.disabled = false;
